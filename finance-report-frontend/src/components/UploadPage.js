@@ -1,9 +1,14 @@
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { Button, Typography, Box, CircularProgress } from "@mui/material";
+import {
+  Button,
+  Typography,
+  Box,
+  CircularProgress,
+  TextField,
+} from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import styled from "styled-components";
-import * as XLSX from "xlsx";
 
 const UploadContainer = styled.div`
   display: flex;
@@ -71,10 +76,31 @@ const StyledButton = styled(Button)`
   }
 `;
 
+const StyledTextField = styled(TextField)`
+  & .MuiOutlinedInput-root {
+    & fieldset {
+      border-color: #007bff;
+    }
+    &:hover fieldset {
+      border-color: #0056b3;
+    }
+    &.Mui-focused fieldset {
+      border-color: #003f7f;
+    }
+  }
+  & .MuiInputLabel-root {
+    color: #007bff;
+  }
+  & .MuiInputLabel-root.Mui-focused {
+    color: #003f7f;
+  }
+`;
+
 const FileUpload = () => {
   const [file, setFile] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [columnsToRemove, setColumnsToRemove] = useState("");
 
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
     if (rejectedFiles.length > 0) {
@@ -86,21 +112,38 @@ const FileUpload = () => {
     }
   }, []);
 
-  const handleFileRead = (file) => {
-    setLoading(true);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const data = new Uint8Array(event.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
-      console.log("YEEET! Uploaded File Content:", workbook);
-      setLoading(false);
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!file) return alert("Please select a valid file.");
-    handleFileRead(file);
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("columnsToRemove", columnsToRemove);
+
+    try {
+      const response = await fetch("http://localhost:5000/uploadExcel", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `filtered_${file.name}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else {
+        alert("Error uploading file.");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error uploading file.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const { getRootProps, getInputProps } = useDropzone({
@@ -142,6 +185,16 @@ const FileUpload = () => {
             </Typography>
           )}
           {error && <ErrorText>{error}</ErrorText>}
+          <Box mt={3}>
+            <StyledTextField
+              label="Columns to Remove"
+              variant="outlined"
+              fullWidth
+              value={columnsToRemove}
+              onChange={(e) => setColumnsToRemove(e.target.value)}
+              placeholder="Enter columns separated by commas"
+            />
+          </Box>
           <Box mt={3}>
             <StyledButton
               variant="contained"
