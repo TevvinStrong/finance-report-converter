@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import {
   Button,
@@ -6,8 +6,12 @@ import {
   Box,
   CircularProgress,
   TextField,
+  IconButton,
+  Tooltip,
+  tooltipClasses,
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import CancelIcon from "@mui/icons-material/Cancel";
 import styled from "styled-components";
 
 const UploadContainer = styled.div`
@@ -25,7 +29,7 @@ const Card = styled.div`
   border-radius: 16px;
   box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.15);
   text-align: center;
-  max-width: 450px;
+  max-width: 468px;
   width: 100%;
   transition: transform 0.3s ease-in-out;
   &:hover {
@@ -82,7 +86,7 @@ const StyledTextField = styled(TextField)`
       border-color: #007bff;
     }
     &:hover fieldset {
-      border-color: #0056b3;
+      border-color: ${({ disabled }) => (disabled ? "#e0e0e0" : "#0056b3")};
     }
     &.Mui-focused fieldset {
       border-color: #003f7f;
@@ -93,6 +97,31 @@ const StyledTextField = styled(TextField)`
   }
   & .MuiInputLabel-root.Mui-focused {
     color: #003f7f;
+  }
+  &.Mui-disabled {
+    & fieldset {
+      border-color: #e0e0e0;
+    }
+    &:hover fieldset {
+      border-color: #e0e0e0;
+    }
+  }
+`;
+
+const CustomTooltip = styled(({ className, ...props }) => (
+  <Tooltip {...props} classes={{ popper: className }} />
+))`
+  & .${tooltipClasses.tooltip} {
+    background-color: #007bff;
+    color: white;
+    font-size: 14px;
+    border-radius: 8px;
+    padding: 10px 15px;
+    box-shadow: 0px 4px 15px rgba(0, 123, 255, 0.4);
+    max-width: 300px; /* Increase the max-width */
+  }
+  & .${tooltipClasses.arrow} {
+    color: #007bff;
   }
 `;
 
@@ -146,6 +175,11 @@ const FileUpload = () => {
     }
   };
 
+  const handleCancelUpload = () => {
+    setFile(null);
+    setColumnsToRemove("");
+  };
+
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     accept: {
@@ -180,20 +214,50 @@ const FileUpload = () => {
             </Typography>
           </DropzoneContainer>
           {file && (
-            <Typography variant="body2" sx={{ mt: 2, fontWeight: "bold" }}>
-              {file.name}
-            </Typography>
+            <Box display="flex" alignItems="center" mt={2}>
+              <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                {file.name}
+              </Typography>
+              <IconButton onClick={handleCancelUpload} sx={{ ml: 1 }}>
+                <CancelIcon />
+              </IconButton>
+            </Box>
           )}
           {error && <ErrorText>{error}</ErrorText>}
           <Box mt={3}>
-            <StyledTextField
-              label="Columns to Remove"
-              variant="outlined"
-              fullWidth
-              value={columnsToRemove}
-              onChange={(e) => setColumnsToRemove(e.target.value)}
-              placeholder="Enter columns separated by commas"
-            />
+            {file ? (
+              <CustomTooltip
+                title={
+                  <>
+                    Enter column names to remove, separated by commas. The input
+                    should match the column header exactly in the Excel sheet.{" "}
+                    <br />
+                    <strong>Example:</strong> 'Check Date'
+                  </>
+                }
+                arrow
+              >
+                <StyledTextField
+                  label="Columns to Remove"
+                  variant="outlined"
+                  fullWidth
+                  value={columnsToRemove}
+                  onChange={(e) => setColumnsToRemove(e.target.value)}
+                  placeholder="Enter columns separated by commas"
+                  disabled={!file}
+                />
+              </CustomTooltip>
+            ) : (
+              <StyledTextField
+                label="Columns to Remove"
+                variant="outlined"
+                fullWidth
+                value={columnsToRemove}
+                onChange={(e) => setColumnsToRemove(e.target.value)}
+                placeholder="Enter columns separated by commas"
+                disabled={!file}
+              />
+            )}
           </Box>
           <Box mt={3}>
             <StyledButton
