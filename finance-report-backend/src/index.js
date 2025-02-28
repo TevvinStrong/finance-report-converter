@@ -30,25 +30,54 @@ app.post("/uploadExcel", upload.single("file"), (req, res) => {
   const sheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[sheetName];
 
-  // Log the contents of the file
-  const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
-  console.log("Uploaded File Contents:", jsonData);
+  console.log("Worksheet reference:", worksheet); // Debugging statement
 
-  const headers = jsonData[0];
+  const range = xlsx.utils.decode_range(worksheet["!ref"]);
+  console.log("range ", range);
+
+  // Read headers
+  const headers = [];
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const cellAddress = xlsx.utils.encode_cell({ r: 0, c: C });
+    const cell = worksheet[cellAddress];
+    console.log(`Header cell at ${cellAddress}:`, cell); // Debugging statement
+    if (cell && cell.t) headers.push(cell.v);
+  }
+  console.log("headers ", headers); // Debugging statement
+
+  // Filter headers
   const filteredHeaders = headers.filter(
     (header) => header && !columnsToRemove.includes(header.toLowerCase())
   );
-  const filteredData = jsonData.map((row) =>
-    row.filter(
-      (_, index) =>
-        headers[index] &&
-        !columnsToRemove.includes(headers[index].toLowerCase())
-    )
-  );
+  console.log("filteredHeaders ", filteredHeaders);
 
+  // Create a mapping of column indices to headers
+  const headerIndexMap = headers.reduce((map, header, index) => {
+    if (header && !columnsToRemove.includes(header.toLowerCase())) {
+      map[index] = header;
+    }
+    return map;
+  }, {});
+  console.log("headerIndexMap ", headerIndexMap);
+
+  // Filter data
+  const filteredData = [];
+  for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+    const row = [];
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      if (headerIndexMap[C] !== undefined) {
+        const cell = worksheet[xlsx.utils.encode_cell({ r: R, c: C })];
+        row.push(cell ? cell.v : null);
+      }
+    }
+    filteredData.push(row);
+  }
+  console.log("filteredData ", filteredData);
+
+  // Create new worksheet with filtered data
   const newWorksheet = xlsx.utils.aoa_to_sheet([
     filteredHeaders,
-    ...filteredData.slice(1),
+    ...filteredData,
   ]);
   const newWorkbook = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(newWorkbook, newWorksheet, sheetName);
@@ -59,22 +88,24 @@ app.post("/uploadExcel", upload.single("file"), (req, res) => {
     `filtered_${file.originalname}`
   );
 
-  // Ensure the uploads directory exists
+  // Ensure the directory exists
   if (!fs.existsSync(path.join(__dirname, "uploads"))) {
     fs.mkdirSync(path.join(__dirname, "uploads"));
   }
 
   xlsx.writeFile(newWorkbook, outputPath);
 
-  res.download(outputPath, (err) => {
-    if (err) {
-      console.error(err);
-      res.status(500).send("Error downloading the file.");
-    }
+  setTimeout(() => {
+    res.download(outputPath, (err) => {
+      if (err) {
+        console.error(err);
+        res.status(500).send("Error downloading the file.");
+      }
 
-    fs.unlinkSync(file.path);
-    fs.unlinkSync(outputPath);
-  });
+      fs.unlinkSync(file.path);
+      fs.unlinkSync(outputPath);
+    });
+  }, 2000); // 2 second delay
 });
 
 const PORT = process.env.PORT || 5000;
