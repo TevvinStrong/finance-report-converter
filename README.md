@@ -1,6 +1,8 @@
 # Finance Report Converter
 
 Finance Report Converter is a web application designed to help users process Excel files by removing specified columns. The app is built with a focus on seamless UI/UX, ensuring an intuitive experience for users.
+<img width="1920" alt="Screen Shot 2025-02-27 at 11 30 54 PM" src="https://github.com/user-attachments/assets/f33f7d2b-97d9-428e-a8f2-4495ac1e49d8" />
+
 
 ## * Features
 - Upload Excel files (.xlsx and .xls)
